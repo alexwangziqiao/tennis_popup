@@ -31,8 +31,9 @@ jobs:
             ready_for_review) lead="PR 已就绪" ;;
             *) lead="PR 更新" ;;
           esac
-          payload=$(jq -n             --arg text "${lead}: ${PR_TITLE}
-作者: ${PR_AUTHOR}
-${PR_URL}
-回复这则消息，让 hashbrown 审一下。"             '{text: $text}')
-          curl -sS -f -X POST             -H 'Content-type: application/json'             --data "$payload"             "$SLACK_WEBHOOK_URL"
+          text=$(printf '%s: %s\n作者: %s\n%s\n回复这则消息，让 hashbrown 审一下。' "$lead" "$PR_TITLE" "$PR_AUTHOR" "$PR_URL")
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+          curl -sS -f -X POST \
+            -H 'Content-type: application/json' \
+            --data "$payload" \
+            "$SLACK_WEBHOOK_URL"
