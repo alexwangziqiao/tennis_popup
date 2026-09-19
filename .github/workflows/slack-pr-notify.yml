@@ -1,0 +1,38 @@
+name: Slack PR notify
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+jobs:
+  notify:
+    if: github.event.pull_request.draft == false || github.event.action == 'opened' || github.event.action == 'ready_for_review'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require SLACK_WEBHOOK_URL
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "::error::Missing repository secret SLACK_WEBHOOK_URL. Add an Incoming Webhook URL for #tennispopup."
+            exit 1
+          fi
+
+      - name: Post PR to Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_ACTION: ${{ github.event.action }}
+        run: |
+          case "$PR_ACTION" in
+            opened) lead="新 PR" ;;
+            ready_for_review) lead="PR 已就绪" ;;
+            *) lead="PR 更新" ;;
+          esac
+          payload=$(jq -n             --arg text "${lead}: ${PR_TITLE}
+作者: ${PR_AUTHOR}
+${PR_URL}
+回复这则消息，让 hashbrown 审一下。"             '{text: $text}')
+          curl -sS -f -X POST             -H 'Content-type: application/json'             --data "$payload"             "$SLACK_WEBHOOK_URL"
